@@ -6,12 +6,14 @@
 //Nó da lista de memória livre
 typedef struct free_node {
  size_t size;
+ int posicao;
+ void *endereco;
  struct free_node *next;
 } free_node_t;
 
 //Lista de memória alocada. Ponteira para
 //o início da lista.
-typedef *free_node_t mem_free_t;
+typedef free_node_t *mem_free_t;
 
 void *aloca(size_t size);
 void libera(void *ptr);
