@@ -89,7 +89,7 @@ void *bf(size_t size) {
     proximo = proximo->next;
   }
 
-  if(nodeBestFit=>free >= size){ //espaço free mais próximo de size e grande o bastante
+  if(nodeBestFit->free >= size){ //espaço free mais próximo de size e grande o bastante
 
     free_node_t *newNode = (void*)nodeBestFit + nodeBestFit->size + \
                          sizeof(free_node_t); //newNode no espaço imediatamente após o espaço alocado em nodeBestFit+cabeçaçho de newNode
@@ -97,6 +97,7 @@ void *bf(size_t size) {
     newNode->next = NULL;
     newNode->size = size;
     newNode->free = nodeBestFit->free - sizeof(free_node_t) - size;
+    HEAP->lastAlloca = newNode;
 
     //inserir newNode na lista de forma ascendente
     free_node_t *anteriorInsere = HEAP->head, *proximoInsere = HEAP->head;
@@ -106,9 +107,10 @@ void *bf(size_t size) {
       proximoInsere = proximoInsere->next;
     }
 
+    anteriorInsere->next = newNode;
+    newNode->next = proximoInsere;
+
     //fim da inserção de newNode
-
-
     return (void*)newNode + sizeof(free_node_t);
   }
 
@@ -149,6 +151,21 @@ void *aloca(size_t size) {
 
 void libera(void *ptr) {
   free_node_t *metaData = (void*)ptr - sizeof(free_node_t);
+
+  free_node_t *proximo = HEAP->head, *anterior= HEAP->head, *anteriorMetaData = NULL, *proximoMetaData = NULL;
+
+  //procurando pelo ponteiro que aponta para metadata
+  while(proximo != metaData){//caminhar na lista até encontrar metaData
+    anterior = proximo;
+    proximo = proximo->next;
+  }
+
+  anteriorMetaData = anterior;
+  proximoMetaData = metaData->next;
+
+  anteriorMetaData->free += sizeof(free_node_t) + metaData->free + metaData->size;
+
+  anteriorMetaData->next = metaData->next;
 }
 
 void run(void **variables) {
