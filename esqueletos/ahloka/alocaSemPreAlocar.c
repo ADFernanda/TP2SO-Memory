@@ -25,16 +25,19 @@ free_list_t *HEAP = NULL;
 void *alwaysGrow(size_t size) {
   assert(HEAP->lastAlloca != NULL);
   free_node_t *lastAlloca = HEAP->lastAlloca;
-  printf("Ultimo free %lu\n", lastAlloca->free);
+  printf("Ulitmo free %lu\n", lastAlloca->free);
   // Temos espaço para alocar + o espaço da lista?
-  if (lastAlloca->free < sizeof(free_node_t) + size) {
+  if (lastAlloca->free - sizeof(free_node_t) < size) {
     return NULL;
   }
   // Sim!
   // Novo nó logo após o último aloca.
   // Posicao da alocacao + tamanho alocado + tamanho do cabeçalho
-  free_node_t *newNode = (void*)lastAlloca + lastAlloca->size + \
-                         sizeof(free_node_t);
+  void *init = (void*)lastAlloca + lastAlloca->size + \
+               sizeof(free_node_t);
+  free_node_t *newNode = mmap(init, sizeof(free_node_t) + size,
+                              PROT_READ | PROT_WRITE,
+                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   newNode->next = NULL;
   newNode->size = size;
   newNode->free = lastAlloca->free - sizeof(free_node_t) - size;
@@ -49,69 +52,10 @@ void *alwaysGrow(size_t size) {
 }
 
 void *ff(size_t size) {
-
-  free_node_t *proximo = HEAP->head;
-
-  while(proximo != NULL){//caminhar na lista e pegar primeiro espaço vazio grande o suficiente
-    if(proximo->free >= size){//encontrado espaço em que será alocado
-
-      free_node_t *newNode = (void*)proximo + proximo->size + \
-                         sizeof(free_node_t); //newNode no espaço imediatamente após o espaço alocado em proximo+cabeçaçho de newNode
-
-      newNode->next = NULL;
-      newNode->size = size;
-      newNode->free = proximo->free - sizeof(free_node_t) - size;
-
-      proximo->free = 0;
-      proximo->next = newNode;
-      HEAP->lastAlloca = newNode;
-
-      return (void*)newNode + sizeof(free_node_t);
-    }
-    proximo = proximo->next;
-    
-  }
-  return NULL;//não foi encontrado espaço de memória grande o suficiente para alocação
+  return NULL;
 }
 
 void *bf(size_t size) {
-
-  free_node_t *proximo = HEAP->head, *nodeBestFit = HEAP->head;
-  int alocado = 0;
-
-  while(proximo != NULL){//caminhar na lista enquanto há algum espaço livre ou não qualquer
-
-    if( (proximo->free < nodeBestFit->free) && (proximo->free >= size) ){//encontrado candidato a espaço em que será alocado
-
-      nodeBestFit = proximo;
-      
-    }
-    proximo = proximo->next;
-  }
-
-  if(nodeBestFit=>free >= size){ //espaço free mais próximo de size e grande o bastante
-
-    free_node_t *newNode = (void*)nodeBestFit + nodeBestFit->size + \
-                         sizeof(free_node_t); //newNode no espaço imediatamente após o espaço alocado em nodeBestFit+cabeçaçho de newNode
-
-    newNode->next = NULL;
-    newNode->size = size;
-    newNode->free = nodeBestFit->free - sizeof(free_node_t) - size;
-
-    //inserir newNode na lista de forma ascendente
-    free_node_t *anteriorInsere = HEAP->head, *proximoInsere = HEAP->head;
-
-    while(proximoInsere->free < newNode->free){
-      anteriorInsere = proximoInsere;
-      proximoInsere = proximoInsere->next;
-    }
-
-    //fim da inserção de newNode
-
-
-    return (void*)newNode + sizeof(free_node_t);
-  }
-
   return NULL;
 }
 
@@ -155,13 +99,15 @@ void run(void **variables) {
   // Vamos iniciar alocando todo o MEMSIZE. Vamos split e merges depois.
   // Vou iniciar o HEAP usando NULL, deixa o SO decidir. Podemos usar sbrk(0)
   // também para sugerir o local inicial.
-  HEAP = mmap(NULL, MEMSIZE,
+  HEAP = mmap(NULL, sizeof(free_list_t),
               PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
               -1, 0);
   assert(HEAP != NULL);
   assert(HEAP != MAP_FAILED);
 
-  HEAP->head = (void*) HEAP + sizeof(free_list_t);
+  HEAP->head = mmap(HEAP + sizeof(free_list_t), sizeof(free_node_t),
+                    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
+                    -1, 0);
   HEAP->lastAlloca = HEAP->head;
   HEAP->head->size = 0;
   HEAP->head->free = MEMSIZE - sizeof(free_list_t) - sizeof(free_node_t);
