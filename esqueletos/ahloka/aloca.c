@@ -19,6 +19,19 @@ static char *STRATEGY = NULL;
 // terá que ser acessada como uma var global. Global vars in C.
 free_list_t *HEAP = NULL;
 
+void InsereFimLista(free_node_t *newNode){ //insere no fim da lista e atualiza HEAP->lastAloca
+  free_node_t *proximo = HEAP->head;
+
+    while(proximo->next != NULL){
+      proximo = proximo->next;
+    }
+
+    proximo->next = newNode;
+    newNode->next = NULL;
+
+    HEAP->lastAlloca = newNode;
+}
+
 /*
  * Sempre aloca até estourar o limite, não implementei libera
  */
@@ -51,6 +64,8 @@ void *alwaysGrow(size_t size) {
 void *ff(size_t size) {
 
   free_node_t *proximo = HEAP->head;
+  free_node_t *lastAlloca = HEAP->lastAlloca;
+  printf("Ultimo free %lu\n", lastAlloca->free);
 
   while(proximo != NULL){//caminhar na lista e pegar primeiro espaço vazio grande o suficiente
     if(proximo->free >= size){//encontrado espaço em que será alocado
@@ -63,8 +78,8 @@ void *ff(size_t size) {
       newNode->free = proximo->free - sizeof(free_node_t) - size;
 
       proximo->free = 0;
-      proximo->next = newNode;
-      HEAP->lastAlloca = newNode;
+
+      InsereFimLista(newNode);
 
       return (void*)newNode + sizeof(free_node_t);
     }
@@ -97,20 +112,9 @@ void *bf(size_t size) {
     newNode->next = NULL;
     newNode->size = size;
     newNode->free = nodeBestFit->free - sizeof(free_node_t) - size;
-    HEAP->lastAlloca = newNode;
 
-    //inserir newNode na lista de forma ascendente
-    free_node_t *anteriorInsere = HEAP->head, *proximoInsere = HEAP->head;
+    InsereFimLista(newNode);
 
-    while(proximoInsere->free < newNode->free){
-      anteriorInsere = proximoInsere;
-      proximoInsere = proximoInsere->next;
-    }
-
-    anteriorInsere->next = newNode;
-    newNode->next = proximoInsere;
-
-    //fim da inserção de newNode
     return (void*)newNode + sizeof(free_node_t);
   }
 
@@ -123,6 +127,26 @@ void *wf(size_t size) {
 
 void *nf(size_t size) {
   return NULL;
+}
+
+
+void ImprimeFragmentacao(){
+
+  size_t totalFree=0;
+  free_node_t *proximo= HEAP->head, *largestFreeNode = HEAP->head;
+
+  printf("aqui\n");
+
+  while(proximo != NULL){
+    totalFree += proximo->free;
+
+    if(proximo->free > largestFreeNode->free){
+      largestFreeNode = proximo;
+    }
+    proximo = proximo->next;
+
+  }
+  printf("Fragmentacao: %f\n",1-(double)largestFreeNode->free/totalFree);
 }
 
 void *aloca(size_t size) {
@@ -151,6 +175,7 @@ void *aloca(size_t size) {
 
 void libera(void *ptr) {
   free_node_t *metaData = (void*)ptr - sizeof(free_node_t);
+  //printf("metaData\t size:%lu\n",metaData->size );
 
   free_node_t *proximo = HEAP->head, *anterior= HEAP->head, *anteriorMetaData = NULL, *proximoMetaData = NULL;
 
@@ -158,17 +183,16 @@ void libera(void *ptr) {
   while(proximo != metaData){//caminhar na lista até encontrar metaData
     anterior = proximo;
     proximo = proximo->next;
+    printf("achei\t size:%lu\n",proximo->size );
   }
 
   anteriorMetaData = anterior;
   proximoMetaData = metaData->next;
-
   anteriorMetaData->free += sizeof(free_node_t) + metaData->free + metaData->size;
-
   anteriorMetaData->next = metaData->next;
 }
 
-void run(void **variables) {
+void run(void **variables, int nops) {
   // Vamos iniciar alocando todo o MEMSIZE. Vamos split e merges depois.
   // Vou iniciar o HEAP usando NULL, deixa o SO decidir. Podemos usar sbrk(0)
   // também para sugerir o local inicial.
@@ -183,12 +207,15 @@ void run(void **variables) {
   HEAP->head->size = 0;
   HEAP->head->free = MEMSIZE - sizeof(free_list_t) - sizeof(free_node_t);
   HEAP->head->next = NULL;
+  int i=0;
 
   int opid;    // ID da operação
   int memsize; // Tamanho da alocação
   char optype; // Tipo da operação
   void *addr;
-  while (scanf("%d", &opid) == 1) {
+
+  for(i=0; i<nops; i++){
+    scanf("%d", &opid);
     getchar();
     scanf("%d", &memsize);
     getchar();
@@ -205,6 +232,7 @@ void run(void **variables) {
       variables[opid] = addr;
     } else if (optype == 'f') {  // Free!
       addr = variables[opid];
+      printf("\n\noperacao: %d\n",opid );
       libera(addr);
     } else {
       printf("Erro na entrada");
@@ -212,6 +240,7 @@ void run(void **variables) {
       exit(1);
     }
   }
+  ImprimeFragmentacao();
   munmap(HEAP, MEMSIZE);
 }
 
@@ -249,6 +278,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < nops; i++)
     variables[i] = NULL;
 
-  run(variables);
+  run(variables, nops);
+
   free(variables);
 }
