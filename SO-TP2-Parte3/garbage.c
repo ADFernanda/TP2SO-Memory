@@ -26,10 +26,10 @@ void exitControlado(int exitMode){
 full_node_t aloca(size_t size, long long int *memsizeFree){
 	full_node_t node;
 	char numberString[15];
-	sprintf(numberString, "%lld", (*memsizeFree) - size);
+	sprintf(numberString, "%lld", (*memsizeFree) - size - sizeof(full_node_t));
 	if(numberString[0] != '-'){
-		(*memsizeFree) -= size;
-		node.size = size;
+		(*memsizeFree) -= size + sizeof(full_node_t);
+		node.size = size + sizeof(full_node_t);
 		node.referenceCount = 1;
 		node.referencePointer = NULL;
 		return node;

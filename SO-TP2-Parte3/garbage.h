@@ -1,7 +1,8 @@
 #ifndef SO605_GC
 #define SO605_GC
 
-#define MEMSIZE (long long int) 4096*1024*1024 // Processo tem 4096 MB de memória
+//DEPRECATED #define MEMSIZE (long long int) 4096*1024*1024 // Processo tem 4096 MB de memória
+#define MEMSIZE (long long int) 4194304
 #define REFERENCE_SIZE 4
 
 // Nó da lista de memória alocada
