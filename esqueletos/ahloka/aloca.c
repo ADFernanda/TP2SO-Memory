@@ -97,13 +97,11 @@ void *bf(size_t size) {
   int alocado = 0;
 
   while(proximo != NULL){//caminhar na lista enquanto há algum espaço livre ou não qualquer
-    
-    if( ((proximo->free < nodeBestFit->free) && (proximo->free >= (sizeof(free_node_t) + size))) || (nodeBestFit->free == 0) || (nodeBestFit->size < (sizeof(free_node_t) + size)) ){//encontrado candidato a espaço em que será alocado
+    if( ((proximo->free < nodeBestFit->free) && (proximo->free >= (sizeof(free_node_t) + size))) || (nodeBestFit->free == 0) || (nodeBestFit->free < (sizeof(free_node_t) + size)) ){//encontrado candidato a espaço em que será alocado
       nodeBestFit = proximo;
     }
     proximo = proximo->next;
   }
-
   if(nodeBestFit->free >= sizeof(free_node_t) + size){ //espaço free mais próximo de size+cabeçalho e grande o bastante
 
     free_node_t *newNode = (void*)nodeBestFit + nodeBestFit->size + \
