@@ -18,6 +18,6 @@ typedef struct {
 } free_list_t;
 
 void *aloca(size_t size);
-void libera(void *ptr);
+void *libera(void *ptr);
 
 #endif

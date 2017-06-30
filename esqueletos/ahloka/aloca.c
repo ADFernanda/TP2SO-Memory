@@ -32,9 +32,6 @@ void InsereFimLista(free_node_t *newNode){ //insere no fim da lista e atualiza H
     HEAP->lastAlloca = newNode;
 }
 
-/*
- * Sempre aloca até estourar o limite, não implementei libera
- */
 void *alwaysGrow(size_t size) {
   assert(HEAP->lastAlloca != NULL);
   free_node_t *lastAlloca = HEAP->lastAlloca;
@@ -68,12 +65,11 @@ void *ff(size_t size) {
   //printf("Ultimo free %lu\n", lastAlloca->free);
 
   while(proximo != NULL){//caminhar na lista e pegar primeiro espaço vazio grande o suficiente
-    if(proximo->free >= size){//encontrado espaço em que será alocado
+    if(proximo->free >= (sizeof(free_node_t) + size)){//encontrado espaço em que será alocado
 
-      // Temos espaço para alocar + o espaço da lista?
-      if (proximo->free < sizeof(free_node_t) + size) {
-        return NULL;
-      }
+      // if (proximo->free < sizeof(free_node_t) + size) {//verifica se tem espaço para alocar + o espaço da lista
+      //   return NULL;
+      // }
 
       free_node_t *newNode = (void*)proximo + proximo->size + \
                          sizeof(free_node_t); //newNode no espaço imediatamente após o espaço alocado em proximo+cabeçaçho de newNode
@@ -99,18 +95,16 @@ void *bf(size_t size) {
 
   free_node_t *proximo = HEAP->head, *nodeBestFit = HEAP->head;
   int alocado = 0;
-  //printf("ANTES: %lu\n", nodeBestFit->free );
 
   while(proximo != NULL){//caminhar na lista enquanto há algum espaço livre ou não qualquer
-    //printf("proximo %lu\n", proximo->free);
-    if( (proximo->free < nodeBestFit->free) && (proximo->free >= size) || (nodeBestFit->free == 0) ){//encontrado candidato a espaço em que será alocado
+    
+    if( ((proximo->free < nodeBestFit->free) && (proximo->free >= (sizeof(free_node_t) + size))) || (nodeBestFit->free == 0) || (nodeBestFit->size < (sizeof(free_node_t) + size)) ){//encontrado candidato a espaço em que será alocado
       nodeBestFit = proximo;
     }
     proximo = proximo->next;
   }
-  //printf("nodeBestFit: %lu\n", nodeBestFit->free );
 
-  if(nodeBestFit->free >= sizeof(free_node_t) + size){ //espaço free mais próximo de size e grande o bastante
+  if(nodeBestFit->free >= sizeof(free_node_t) + size){ //espaço free mais próximo de size+cabeçalho e grande o bastante
 
     free_node_t *newNode = (void*)nodeBestFit + nodeBestFit->size + \
                          sizeof(free_node_t); //newNode no espaço imediatamente após o espaço alocado em nodeBestFit+cabeçaçho de newNode
@@ -134,15 +128,13 @@ void *wf(size_t size) {
 
   while(proximo != NULL){//caminhar na lista enquanto há algum espaço livre ou não qualquer
 
-    if( (proximo->free >= nodeWorstFit->free) && (proximo->free >= size) ){//encontrado candidato a espaço em que será alocado
+    if( (proximo->free >= nodeWorstFit->free) && (proximo->free >= (sizeof(free_node_t) + size)) || (nodeWorstFit->size < (sizeof(free_node_t) + size)) ){//encontrado candidato a espaço em que será alocado
       nodeWorstFit = proximo;
     }
     proximo = proximo->next;
   }
 
-  //printf("NodeWorstFit: %lu\n", nodeWorstFit->free );
-
-  if(nodeWorstFit->free > sizeof(free_node_t) + size){ //espaço free mais próximo de size e grande o bastante
+  if(nodeWorstFit->free >= sizeof(free_node_t) + size){ //espaço free mais próximo de size e grande o bastante
 
     free_node_t *newNode = (void*)nodeWorstFit + nodeWorstFit->size + \
                          sizeof(free_node_t); //newNode no espaço imediatamente após o espaço alocado em nodeWorstFit+cabeçaçho de newNode
@@ -165,12 +157,12 @@ void *nf(size_t size) {
   free_node_t *lastAlloca = HEAP->lastAlloca, *proximo = HEAP->lastAlloca;
 
   while(proximo != NULL){//caminhar na lista e pegar primeiro espaço vazio grande o suficiente
-    if(proximo->free >= size){//encontrado espaço em que será alocado
+    if(proximo->free >= (sizeof(free_node_t) + size)){//encontrado espaço em que será alocado
 
       // Temos espaço para alocar + o espaço da lista?
-      if (proximo->free < sizeof(free_node_t) + size) {
-        return NULL;
-      }
+      // if (proximo->free < sizeof(free_node_t) + size) {
+      //   return NULL;
+      // }
 
       free_node_t *newNode = (void*)proximo + proximo->size + \
                          sizeof(free_node_t); //newNode no espaço imediatamente após o espaço alocado em proximo+cabeçaçho de newNode
@@ -205,7 +197,11 @@ void ImprimeFragmentacao(){
     proximo = proximo->next;
 
   }
-  printf("Fragmentacao: %f\n",1-(double)largestFreeNode->free/totalFree);
+  if(totalFree == 0){
+    printf("1 (mem full)\n");
+  }else{
+    printf("%f\n",1-(double)largestFreeNode->free/totalFree);
+  }
 }
 
 void *aloca(size_t size) {
@@ -232,29 +228,29 @@ void *aloca(size_t size) {
   return NULL;
 }
 
-void libera(void *ptr) {
-    free_node_t *proximo1 = HEAP->head;
+void *libera(void *ptr) {
+  free_node_t *proximo1 = HEAP->head;
 
   free_node_t *metaData = (void*)ptr - sizeof(free_node_t);
-  //printf("metaData\t size:%lu\n",metaData->size );
 
   free_node_t *proximo = HEAP->head, *anterior= HEAP->head, *anteriorMetaData = NULL, *proximoMetaData = NULL;
-  //printf("libera\t size:%lu\n",metaData->size );
+  
   //procurando pelo ponteiro que aponta para metadata
   while(proximo != metaData){//caminhar na lista até encontrar metaData
     anterior = proximo;
     proximo = proximo->next;
-    //printf("achei\t size:%lu\n",proximo->size );
   }
 
   if(proximo != metaData){
     printf("Erro ao liberar espaço de memoria.\n");
+    return ptr; 
   }
 
   anteriorMetaData = anterior;
   proximoMetaData = metaData->next;
   anteriorMetaData->free += sizeof(free_node_t) + metaData->free + metaData->size;
   anteriorMetaData->next = metaData->next;
+  return NULL;
 }
 
 void run(void **variables, int nops) {
@@ -274,40 +270,56 @@ void run(void **variables, int nops) {
   HEAP->head->next = NULL;
   int i=0;
 
-  int opid;    // ID da operação
+  int opid, a=0, indiceAtual = -1, erro=0;    // ID da operação
   int memsize; // Tamanho da alocação
   char optype; // Tipo da operação
   void *addr;
 
   while (scanf("%d", &opid) == 1) {
+    a++;
     getchar();
     scanf("%d", &memsize);
     getchar();
     scanf("%c", &optype);
     getchar();
-    //printf("%d\n",opid );
-    //printf("Alocando %d; %d; %c\n", opid, memsize, optype);
     if (optype == 'a') {         // Aloca!
-
-      addr = aloca(memsize);
-      if (addr == NULL) {
+      indiceAtual = opid;      
+      if(variables[opid] != NULL){
+        printf("Erro. Tentativa de alocar memória que já foi alocada. opid = %d\n", opid); 
+        erro = 1;
+        break;
+      }else{
+        addr = aloca(memsize);
+        if (addr == NULL) {
         printf("mem full\n");
         munmap(HEAP, MEMSIZE);
         exit(1);
       }
       variables[opid] = addr;
+    }      
     } else if (optype == 'f') {  // Free!
-      addr = variables[opid];
-      //("\n\noperacao: %d\n",opid );
-      libera(addr);
+      if(opid > indiceAtual || indiceAtual == -1){
+        printf("Erro. Tentativa de liberar memória que não foi alocada. opid = %d\n", opid); 
+      }else{
+        addr = variables[opid];
+        if(addr != NULL){
+          variables[opid] = libera(addr);
+        }else{
+          printf("Erro. Tentativa de liberar memória que não foi alocada. opid = %d\n", opid); 
+        }
+        
+      }
+      
     } else {
-      //printf("ENTRADA %c\n", optype);
       printf("Erro na entrada\n");
       munmap(HEAP, MEMSIZE);
       exit(1);
     }
   }
-  ImprimeFragmentacao();
+  if(erro == 0){
+    ImprimeFragmentacao();
+  }
+  
   munmap(HEAP, MEMSIZE);
 }
 
@@ -320,7 +332,6 @@ int main(int argc, char **argv) {
 
   int nops;
   scanf("%d\n", &nops);
-  //printf("%d\n", nops);
 
   char *algorithms[] = {"ff", "bf", "wf", "nf", "ag"};
   int n_alg = 5;
